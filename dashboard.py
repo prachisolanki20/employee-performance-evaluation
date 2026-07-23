@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import tkinter as tk
+from datetime import datetime
+from pathlib import Path
+from tkinter import filedialog
 from pathlib import Path
 from tkinter import filedialog, ttk
 from tkinter import ttk
@@ -12,6 +15,20 @@ try:
 except ImportError:
     from tkinter import ttk as tb  # type: ignore
 
+try:
+    from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+    from matplotlib.figure import Figure
+except ImportError:
+    Figure = None  # type: ignore[assignment]
+    FigureCanvasTkAgg = None  # type: ignore[assignment]
+
+from attendance import AttendanceFrame
+from database import BASE_DIR, DB
+from department import DepartmentFrame
+from employee import EmployeeFrame
+from evaluation import EvaluationFrame
+from reports import ReportsFrame
+from theme import CHINESE_BLACK, LIGHT_BG, WATERMELON_PINK, Toast
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 
@@ -65,6 +82,15 @@ class DashboardFrame(tb.Frame):
             widget.destroy()
 
     def show_home(self) -> None:
+        """Display dashboard cards and charts."""
+        self._clear_content()
+        hero = tk.Frame(self.content, bg=CHINESE_BLACK, padx=18, pady=18)
+        hero.pack(fill="x", pady=(0, 12))
+        tk.Label(hero, text="🍉 HR Analytics Command Center", bg=CHINESE_BLACK, fg=WATERMELON_PINK, font=("Segoe UI", 24, "bold")).pack(anchor="w")
+        tk.Label(hero, text="Premium Chinese Black × Watermelon Pink performance insights", bg=CHINESE_BLACK, fg="white", font=("Segoe UI", 11)).pack(anchor="w")
+        cards = tb.Frame(self.content)
+        cards.pack(fill="x", pady=15)
+        for title, value in self._stats().items():
         """Display dashboard cards and matplotlib charts."""
         self._clear_content()
         hero = tb.Frame(self.content, padding=18)
@@ -106,6 +132,25 @@ class DashboardFrame(tb.Frame):
         }
 
     def _draw_charts(self) -> None:
+        """Draw charts, or a helpful message when Matplotlib is unavailable."""
+        if Figure is None or FigureCanvasTkAgg is None:
+            tb.Label(self.content, text="Install matplotlib to view dashboard charts.", font=("Segoe UI", 12)).pack(pady=20)
+            return
+        department_rows = DB.fetch_all("SELECT department, COUNT(*) AS total FROM employees GROUP BY department")
+        score_rows = DB.fetch_all(
+            """
+            SELECT e.name, ROUND(AVG(v.total_score), 2) AS score
+            FROM evaluations v JOIN employees e ON e.employee_id = v.employee_id
+            GROUP BY e.name
+            """
+        )
+        fig = Figure(figsize=(9, 4), dpi=100)
+        ax1 = fig.add_subplot(121)
+        ax2 = fig.add_subplot(122)
+        if department_rows:
+            ax1.pie([row["total"] for row in department_rows], labels=[row["department"] for row in department_rows], autopct="%1.0f%%")
+        ax1.set_title("Employees by Department")
+        ax2.bar([row["name"].split()[0] for row in score_rows], [row["score"] for row in score_rows])
         """Draw department and score distribution charts."""
         rows = DB.fetch_all("SELECT department, COUNT(*) AS total FROM employees GROUP BY department")
         fig = Figure(figsize=(9, 4), dpi=100)
@@ -169,6 +214,9 @@ class DashboardFrame(tb.Frame):
     def toggle_theme(self) -> None:
         """Toggle between dark presentation mode and light mode."""
         self.dark_mode = not self.dark_mode
+        self.content.configure(style="TFrame")
+        background = CHINESE_BLACK if self.dark_mode else LIGHT_BG
+        self.winfo_toplevel().configure(bg=background)
         color = CHINESE_BLACK if self.dark_mode else "#fff5f8"
         self.configure(style="TFrame")
         self.content.configure(style="TFrame")

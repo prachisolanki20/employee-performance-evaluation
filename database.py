@@ -1,5 +1,7 @@
 """Database access layer for the Employee Performance Evaluation System.
 
+The project uses a local SQLite database so the college demo can run on any
+computer without external database setup.
 The project prefers Oracle through python-oracledb thin mode. If Oracle settings are
 not available, it automatically uses a local SQLite database so the college demo can
 run on any laptop without changing application code.
@@ -24,6 +26,8 @@ class DatabaseManager:
     """Centralized database manager used by all GUI modules."""
 
     def __init__(self) -> None:
+        """Create a SQLite database manager for the local demo database."""
+        LOGGER.info("Using local SQLite database at %s", SQLITE_DB_PATH)
         """Create a database manager and decide whether Oracle is configured."""
         self.use_oracle = all(
             os.getenv(name) for name in ("ORACLE_USER", "ORACLE_PASSWORD", "ORACLE_DSN")
@@ -46,6 +50,9 @@ class DatabaseManager:
         """Yield a database connection and always close it safely."""
         connection = None
         try:
+            connection = sqlite3.connect(SQLITE_DB_PATH)
+            connection.row_factory = sqlite3.Row
+            connection.execute("PRAGMA foreign_keys = ON")
             if self.use_oracle and self._oracledb is not None:
                 connection = self._oracledb.connect(
                     user=os.environ["ORACLE_USER"],
