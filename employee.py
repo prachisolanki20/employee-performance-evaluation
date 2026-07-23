@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import shutil
+import tkinter as tk
+from pathlib import Path
+from tkinter import filedialog, messagebox, ttk
 import tkinter as tk
 from tkinter import messagebox, ttk
 
@@ -10,6 +14,8 @@ try:
 except ImportError:
     from tkinter import ttk as tb  # type: ignore
 
+from database import BASE_DIR, DB
+from theme import Toast
 from database import DB
 
 
@@ -20,6 +26,7 @@ class EmployeeFrame(tb.Frame):
         """Create employee form and table."""
         super().__init__(master)
         self.selected_id: int | None = None
+        self.photo_path = tk.StringVar()
         self.fields = {name: tk.StringVar() for name in ("name", "department", "designation", "email", "phone", "joining_date", "status", "search")}
         self.fields["status"].set("Active")
         self._build_ui()
@@ -40,6 +47,11 @@ class EmployeeFrame(tb.Frame):
             tb.Button(buttons, text=text, command=command).pack(side="left", padx=4)
         tb.Entry(buttons, textvariable=self.fields["search"], width=28).pack(side="right", padx=4)
         tb.Button(buttons, text="Search", command=self.refresh).pack(side="right")
+        tb.Button(buttons, text="Upload Photo", command=self.upload_photo).pack(side="left", padx=4)
+        columns = ("employee_id", "name", "department", "designation", "email", "phone", "joining_date", "status", "photo_path")
+        self.tree = ttk.Treeview(self, columns=columns, show="headings", height=15)
+        for column in columns:
+            self.tree.heading(column, text=column.replace("_", " ").title(), command=lambda c=column: self.sort_by(c, False))
         columns = ("employee_id", "name", "department", "designation", "email", "phone", "joining_date", "status")
         self.tree = ttk.Treeview(self, columns=columns, show="headings", height=15)
         for column in columns:
@@ -59,12 +71,30 @@ class EmployeeFrame(tb.Frame):
             return False
         return True
 
+    def upload_photo(self) -> None:
+        """Copy a selected employee photo into the assets folder."""
+        source = filedialog.askopenfilename(filetypes=[("Image Files", "*.png *.jpg *.jpeg *.gif")])
+        if not source:
+            return
+        photo_dir = BASE_DIR / "assets" / "employee_photos"
+        photo_dir.mkdir(parents=True, exist_ok=True)
+        destination = photo_dir / Path(source).name
+        shutil.copy2(source, destination)
+        self.photo_path.set(str(destination.relative_to(BASE_DIR)))
+        Toast.show(self, "Employee photo uploaded")
+
     def add_employee(self) -> None:
         """Insert a new employee record."""
         if not self._validate():
             return
         try:
             DB.execute(
+                "INSERT INTO employees (name, department, designation, email, phone, joining_date, status, photo_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                tuple(self.fields[key].get().strip() for key in ("name", "department", "designation", "email", "phone", "joining_date", "status")) + (self.photo_path.get(),),
+            )
+            self.clear_form()
+            self.refresh()
+            Toast.show(self, "Employee added successfully")
                 "INSERT INTO employees (name, department, designation, email, phone, joining_date, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
                 tuple(self.fields[key].get().strip() for key in ("name", "department", "designation", "email", "phone", "joining_date", "status")),
             )
@@ -78,6 +108,12 @@ class EmployeeFrame(tb.Frame):
         if self.selected_id is None or not self._validate():
             return
         DB.execute(
+            "UPDATE employees SET name=?, department=?, designation=?, email=?, phone=?, joining_date=?, status=?, photo_path=? WHERE employee_id=?",
+            tuple(self.fields[key].get().strip() for key in ("name", "department", "designation", "email", "phone", "joining_date", "status")) + (self.photo_path.get(), self.selected_id),
+        )
+        self.clear_form()
+        self.refresh()
+        Toast.show(self, "Employee updated successfully")
             "UPDATE employees SET name=?, department=?, designation=?, email=?, phone=?, joining_date=?, status=? WHERE employee_id=?",
             tuple(self.fields[key].get().strip() for key in ("name", "department", "designation", "email", "phone", "joining_date", "status")) + (self.selected_id,),
         )
@@ -93,6 +129,7 @@ class EmployeeFrame(tb.Frame):
             DB.execute("DELETE FROM employees WHERE employee_id=?", (self.selected_id,))
             self.clear_form()
             self.refresh()
+            Toast.show(self, "Employee deleted successfully")
 
     def refresh(self) -> None:
         """Reload employee table using optional search text."""
@@ -105,6 +142,18 @@ class EmployeeFrame(tb.Frame):
         for row in rows:
             self.tree.insert("", "end", values=tuple(row[column] for column in self.tree["columns"]))
 
+    def sort_by(self, column: str, descending: bool) -> None:
+        """Sort the employee table by a selected column."""
+        rows = [(self.tree.set(item, column), item) for item in self.tree.get_children("")]
+        rows.sort(reverse=descending)
+        for index, (_value, item) in enumerate(rows):
+            self.tree.move(item, "", index)
+        self.tree.heading(column, command=lambda: self.sort_by(column, not descending))
+
+    def clear_form(self) -> None:
+        """Clear form fields and selection."""
+        self.selected_id = None
+        self.photo_path.set("")
     def clear_form(self) -> None:
         """Clear form fields and selection."""
         self.selected_id = None
@@ -119,5 +168,8 @@ class EmployeeFrame(tb.Frame):
             return
         values = self.tree.item(item, "values")
         self.selected_id = int(values[0])
+        for key, value in zip(("name", "department", "designation", "email", "phone", "joining_date", "status"), values[1:8]):
+            self.fields[key].set(value)
+        self.photo_path.set(values[8] if len(values) > 8 else "")
         for key, value in zip(("name", "department", "designation", "email", "phone", "joining_date", "status"), values[1:]):
             self.fields[key].set(value)

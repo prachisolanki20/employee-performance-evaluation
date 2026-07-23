@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import tkinter as tk
+from pathlib import Path
+from tkinter import filedialog, ttk
 from tkinter import ttk
 
 try:
@@ -17,6 +19,10 @@ from database import DB
 from employee import EmployeeFrame
 from evaluation import EvaluationFrame
 from reports import ReportsFrame
+from department import DepartmentFrame
+from attendance import AttendanceFrame
+from database import BASE_DIR
+from theme import CHINESE_BLACK, WATERMELON_PINK, Toast
 
 
 class DashboardFrame(tb.Frame):
@@ -27,6 +33,7 @@ class DashboardFrame(tb.Frame):
         super().__init__(master)
         self.username = username
         self.role = role
+        self.dark_mode = True
         self.content = tb.Frame(self, padding=18)
         self._build_layout()
         self.show_home()
@@ -41,6 +48,12 @@ class DashboardFrame(tb.Frame):
             ("Dashboard", self.show_home),
             ("Employees", self.show_employees),
             ("Evaluations", self.show_evaluations),
+            ("Departments", self.show_departments),
+            ("Attendance", self.show_attendance),
+            ("Reports", self.show_reports),
+            ("Backup DB", self.backup_database),
+            ("Restore DB", self.restore_database),
+            ("Toggle Theme", self.toggle_theme),
             ("Reports", self.show_reports),
         ):
             tb.Button(sidebar, text=text, command=command).pack(fill="x", pady=6)
@@ -54,6 +67,10 @@ class DashboardFrame(tb.Frame):
     def show_home(self) -> None:
         """Display dashboard cards and matplotlib charts."""
         self._clear_content()
+        hero = tb.Frame(self.content, padding=18)
+        hero.pack(fill="x", pady=(0, 12))
+        tk.Label(hero, text="🍉 HR Analytics Command Center", bg=CHINESE_BLACK, fg=WATERMELON_PINK, font=("Segoe UI", 24, "bold")).pack(anchor="w")
+        tk.Label(hero, text="Premium Chinese Black × Watermelon Pink performance insights", bg=CHINESE_BLACK, fg="white", font=("Segoe UI", 11)).pack(anchor="w")
         tb.Label(self.content, text="Dashboard", font=("Segoe UI", 24, "bold")).pack(anchor="w")
         stats = self._stats()
         cards = tb.Frame(self.content)
@@ -69,6 +86,10 @@ class DashboardFrame(tb.Frame):
         """Calculate dashboard metrics from the database."""
         employees = DB.fetch_one("SELECT COUNT(*) AS total FROM employees") or {"total": 0}
         evaluations = DB.fetch_one("SELECT COUNT(*) AS total FROM evaluations") or {"total": 0}
+        avg = DB.fetch_one("SELECT ROUND(AVG(total_score), 2) AS score FROM evaluations")
+        top = DB.fetch_one(
+            """
+            SELECT e.name AS name, ROUND(AVG(v.total_score), 2) AS score
         avg = DB.fetch_one("SELECT ROUND(AVG((ratings+attendance+productivity+teamwork)/4), 2) AS score FROM evaluations")
         top = DB.fetch_one(
             """
@@ -94,6 +115,7 @@ class DashboardFrame(tb.Frame):
             ax1.pie([row["total"] for row in rows], labels=[row["department"] for row in rows], autopct="%1.0f%%")
         ax1.set_title("Employees by Department")
         scores = DB.fetch_all(
+            "SELECT e.name, ROUND(AVG(v.total_score), 2) AS score FROM evaluations v JOIN employees e ON e.employee_id = v.employee_id GROUP BY e.name"
             "SELECT e.name, ROUND(AVG((v.ratings+v.attendance+v.productivity+v.teamwork)/4), 2) AS score FROM evaluations v JOIN employees e ON e.employee_id = v.employee_id GROUP BY e.name"
         )
         ax2.bar([row["name"].split()[0] for row in scores], [row["score"] for row in scores])
@@ -113,7 +135,41 @@ class DashboardFrame(tb.Frame):
         self._clear_content()
         EvaluationFrame(self.content).pack(fill="both", expand=True)
 
+    def show_departments(self) -> None:
+        """Open department and designation management page."""
+        self._clear_content()
+        DepartmentFrame(self.content).pack(fill="both", expand=True)
+
+    def show_attendance(self) -> None:
+        """Open attendance tracking page."""
+        self._clear_content()
+        AttendanceFrame(self.content).pack(fill="both", expand=True)
+
     def show_reports(self) -> None:
         """Open reports page."""
         self._clear_content()
         ReportsFrame(self.content).pack(fill="both", expand=True)
+
+    def backup_database(self) -> None:
+        """Create a timestamped database backup."""
+        from datetime import datetime
+
+        path = DB.backup(BASE_DIR / "backups" / f"employee_performance_{datetime.now():%Y%m%d_%H%M%S}.db")
+        Toast.show(self, f"Database backup created: {path.name}")
+
+    def restore_database(self) -> None:
+        """Restore database from a selected backup file."""
+        source = filedialog.askopenfilename(filetypes=[("SQLite Backup", "*.db"), ("All Files", "*.*")])
+        if not source:
+            return
+        DB.restore(Path(source))
+        Toast.show(self, "Database restored successfully")
+        self.show_home()
+
+    def toggle_theme(self) -> None:
+        """Toggle between dark presentation mode and light mode."""
+        self.dark_mode = not self.dark_mode
+        color = CHINESE_BLACK if self.dark_mode else "#fff5f8"
+        self.configure(style="TFrame")
+        self.content.configure(style="TFrame")
+        Toast.show(self, f"{'Dark' if self.dark_mode else 'Light'} mode enabled")

@@ -5,3 +5,5 @@ employee_performance.db
 reports_output/
 .venv/
 venv/
+backups/
+assets/employee_photos/

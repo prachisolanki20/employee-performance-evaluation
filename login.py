@@ -11,6 +11,7 @@ except ImportError:
     from tkinter import ttk as tb  # type: ignore
 
 from dashboard import DashboardFrame
+from theme import CHINESE_BLACK, SOFT_PINK, WATERMELON_PINK
 from database import DB
 
 
@@ -26,6 +27,16 @@ class LoginFrame(tb.Frame):
 
     def _build_ui(self) -> None:
         """Render login widgets."""
+        self.configure(style="TFrame")
+        logo = tk.Canvas(self, width=130, height=130, bg=CHINESE_BLACK, highlightthickness=0)
+        logo.place(relx=0.5, rely=0.15, anchor="center")
+        logo.create_oval(15, 15, 115, 115, fill=WATERMELON_PINK, outline=SOFT_PINK, width=4)
+        logo.create_text(65, 65, text="HR", fill="white", font=("Segoe UI", 28, "bold"))
+        self._pulse_logo(logo, 0)
+        card = tb.Frame(self, padding=34)
+        card.place(relx=0.5, rely=0.58, anchor="center")
+        tb.Label(card, text="Employee Performance Evaluation", font=("Segoe UI", 22, "bold")).pack(pady=(0, 8))
+        tb.Label(card, text="Premium HR Analytics Login", font=("Segoe UI", 12)).pack(pady=(0, 25))
         card = tb.Frame(self, padding=30)
         card.place(relx=0.5, rely=0.5, anchor="center")
         tb.Label(card, text="Employee Performance Evaluation", font=("Segoe UI", 22, "bold")).pack(pady=(0, 8))
@@ -48,3 +59,11 @@ class LoginFrame(tb.Frame):
             return
         self.destroy()
         DashboardFrame(self.master, user["username"], user["role"]).pack(fill="both", expand=True)
+
+
+    def _pulse_logo(self, logo: tk.Canvas, step: int) -> None:
+        """Animate the login logo with a gentle pulse."""
+        radius = 48 + (step % 12)
+        logo.delete("pulse")
+        logo.create_oval(65 - radius, 65 - radius, 65 + radius, 65 + radius, outline=SOFT_PINK, width=2, tags="pulse")
+        logo.after(120, lambda: self._pulse_logo(logo, step + 1))

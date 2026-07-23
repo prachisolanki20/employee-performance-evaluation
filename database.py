@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
+import shutil
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
@@ -91,6 +92,8 @@ class DatabaseManager:
                 email TEXT NOT NULL UNIQUE,
                 phone TEXT NOT NULL,
                 joining_date TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'Active',
+                photo_path TEXT DEFAULT ''
                 status TEXT NOT NULL DEFAULT 'Active'
             )
             """,
@@ -103,6 +106,9 @@ class DatabaseManager:
                 attendance REAL NOT NULL CHECK (attendance BETWEEN 0 AND 10),
                 productivity REAL NOT NULL CHECK (productivity BETWEEN 0 AND 10),
                 teamwork REAL NOT NULL CHECK (teamwork BETWEEN 0 AND 10),
+                total_score REAL NOT NULL DEFAULT 0,
+                grade TEXT NOT NULL DEFAULT 'C',
+                suggestion TEXT NOT NULL DEFAULT '',
                 remarks TEXT,
                 evaluated_on TEXT NOT NULL DEFAULT CURRENT_DATE,
                 FOREIGN KEY (employee_id) REFERENCES employees(employee_id)
@@ -110,6 +116,48 @@ class DatabaseManager:
                 UNIQUE (employee_id, period)
             )
             """,
+            """
+            CREATE TABLE IF NOT EXISTS departments (
+                department_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                department_name TEXT NOT NULL UNIQUE,
+                manager_name TEXT NOT NULL DEFAULT 'Not Assigned'
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS designations (
+                designation_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                designation_name TEXT NOT NULL UNIQUE,
+                department_name TEXT NOT NULL
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS attendance (
+                attendance_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                employee_id INTEGER NOT NULL,
+                attendance_date TEXT NOT NULL,
+                status TEXT NOT NULL CHECK (status IN ('Present', 'Absent', 'Half Day', 'Leave')),
+                FOREIGN KEY (employee_id) REFERENCES employees(employee_id) ON DELETE CASCADE,
+                UNIQUE (employee_id, attendance_date)
+            )
+            """,
+        ]
+        for statement in statements:
+            cursor.execute(statement)
+        self._migrate_tables(cursor)
+
+    def _migrate_tables(self, cursor: Any) -> None:
+        """Add newer columns when upgrading an existing SQLite demo database."""
+        columns = {row[1] for row in cursor.execute("PRAGMA table_info(employees)").fetchall()}
+        if "photo_path" not in columns:
+            cursor.execute("ALTER TABLE employees ADD COLUMN photo_path TEXT DEFAULT ''")
+        eval_columns = {row[1] for row in cursor.execute("PRAGMA table_info(evaluations)").fetchall()}
+        for column, definition in {
+            "total_score": "REAL NOT NULL DEFAULT 0",
+            "grade": "TEXT NOT NULL DEFAULT 'C'",
+            "suggestion": "TEXT NOT NULL DEFAULT ''",
+        }.items():
+            if column not in eval_columns:
+                cursor.execute(f"ALTER TABLE evaluations ADD COLUMN {column} {definition}")
         ]
         for statement in statements:
             cursor.execute(statement)
@@ -121,6 +169,18 @@ class DatabaseManager:
             cursor.executemany(
                 "INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
                 [("admin", "admin123", "Admin"), ("hr", "hr123", "HR"), ("manager", "manager123", "Manager")],
+            )
+        cursor.execute("SELECT COUNT(*) FROM departments")
+        if cursor.fetchone()[0] == 0:
+            cursor.executemany(
+                "INSERT INTO departments (department_name, manager_name) VALUES (?, ?)",
+                [("IT", "Neha Rao"), ("HR", "Amit Shah"), ("Finance", "Priya Nair"), ("Sales", "Vikram Singh"), ("Operations", "Meera Joshi")],
+            )
+        cursor.execute("SELECT COUNT(*) FROM designations")
+        if cursor.fetchone()[0] == 0:
+            cursor.executemany(
+                "INSERT INTO designations (designation_name, department_name) VALUES (?, ?)",
+                [("Software Engineer", "IT"), ("HR Executive", "HR"), ("Accountant", "Finance"), ("Sales Manager", "Sales"), ("Operations Lead", "Operations")],
             )
         cursor.execute("SELECT COUNT(*) FROM employees")
         if cursor.fetchone()[0] == 0:
@@ -160,6 +220,19 @@ class DatabaseManager:
         """Execute an INSERT, UPDATE, or DELETE statement."""
         with self.connect() as conn:
             conn.cursor().execute(query, params)
+
+    def backup(self, destination: Path) -> Path:
+        """Create a SQLite database backup for demonstrations."""
+        self.initialize()
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(SQLITE_DB_PATH, destination)
+        return destination
+
+    def restore(self, source: Path) -> None:
+        """Restore the SQLite database from a selected backup file."""
+        if not source.exists():
+            raise FileNotFoundError(f"Backup file not found: {source}")
+        shutil.copy2(source, SQLITE_DB_PATH)
 
 
 DB = DatabaseManager()

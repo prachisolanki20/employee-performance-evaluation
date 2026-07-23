@@ -4,6 +4,16 @@ A professional Python desktop mini project for managing employees, recording per
 
 ## Features
 
+- Premium Chinese Black and Watermelon Pink theme with splash screen, animated login logo, toast notifications, and dark/light mode toggle.
+- Role-based login for Admin, HR, and Manager users.
+- Employee management with add, update, delete, search, filters, sorting-ready table columns, and employee photo upload.
+- Department/designation management and attendance tracking.
+- Performance evaluation using ratings, attendance, productivity, teamwork, automatic weighted score calculation, A+/A/B+/B/C grades, and AI-style suggestions.
+- Dashboard cards and charts using Matplotlib.
+- Attractive PDF report generation using ReportLab with branded title and grade notes.
+- Excel export using openpyxl.
+- SQLite demo database with Oracle driver dependency retained for college environments that require Oracle connectivity discussion.
+- Database backup support for safer demonstrations.
 - Role-based login for Admin, HR, and Manager users.
 - Employee management with add, update, delete, and search.
 - Performance evaluation using ratings, attendance, productivity, and teamwork scores.
@@ -22,6 +32,9 @@ main.py
  employee.py
  evaluation.py
  reports.py
+ department.py
+ attendance.py
+ theme.py
  assets/
  requirements.txt
  README.md
@@ -64,4 +77,5 @@ If these variables are missing, the app creates `employee_performance.db` automa
 
 ## Viva Explanation
 
+The project follows a simple layered structure. GUI modules call the centralized `DatabaseManager` in `database.py`, which performs all database operations. This keeps SQL away from button-handling logic and makes the code easier to explain, test, and maintain. The enhanced version adds HR analytics, attendance, department/designation administration, automatic grades, AI-style suggestions, backup support, and exportable reports for a polished viva demonstration.
 The project follows a simple layered structure. GUI modules call the centralized `DatabaseManager` in `database.py`, which performs all database operations. This keeps SQL away from button-handling logic and makes the code easier to explain, test, and maintain.
