@@ -1,0 +1,15 @@
+# Core Oracle database driver (Thin Mode supports Oracle 21c XE and 23c)
+oracledb==2.5.1
+
+# Modern Tkinter theme widgets for the desktop UI
+ttkbootstrap==1.10.1
+
+# Data analysis and tabular report generation
+pandas==2.2.3
+openpyxl==3.1.5
+
+# PDF report generation
+reportlab==4.2.5
+
+# Dashboard and analytics charts
+matplotlib==3.9.2
