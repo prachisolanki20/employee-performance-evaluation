@@ -6,6 +6,8 @@ import shutil
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
+import tkinter as tk
+from tkinter import messagebox, ttk
 
 try:
     import ttkbootstrap as tb
@@ -14,6 +16,7 @@ except ImportError:
 
 from database import BASE_DIR, DB
 from theme import Toast
+from database import DB
 
 
 class EmployeeFrame(tb.Frame):
@@ -49,6 +52,10 @@ class EmployeeFrame(tb.Frame):
         self.tree = ttk.Treeview(self, columns=columns, show="headings", height=15)
         for column in columns:
             self.tree.heading(column, text=column.replace("_", " ").title(), command=lambda c=column: self.sort_by(c, False))
+        columns = ("employee_id", "name", "department", "designation", "email", "phone", "joining_date", "status")
+        self.tree = ttk.Treeview(self, columns=columns, show="headings", height=15)
+        for column in columns:
+            self.tree.heading(column, text=column.replace("_", " ").title())
             self.tree.column(column, width=130)
         self.tree.pack(fill="both", expand=True)
         self.tree.bind("<<TreeviewSelect>>", self._on_select)
@@ -88,6 +95,11 @@ class EmployeeFrame(tb.Frame):
             self.clear_form()
             self.refresh()
             Toast.show(self, "Employee added successfully")
+                "INSERT INTO employees (name, department, designation, email, phone, joining_date, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                tuple(self.fields[key].get().strip() for key in ("name", "department", "designation", "email", "phone", "joining_date", "status")),
+            )
+            self.clear_form()
+            self.refresh()
         except Exception as exc:
             messagebox.showerror("Database Error", str(exc))
 
@@ -102,6 +114,11 @@ class EmployeeFrame(tb.Frame):
         self.clear_form()
         self.refresh()
         Toast.show(self, "Employee updated successfully")
+            "UPDATE employees SET name=?, department=?, designation=?, email=?, phone=?, joining_date=?, status=? WHERE employee_id=?",
+            tuple(self.fields[key].get().strip() for key in ("name", "department", "designation", "email", "phone", "joining_date", "status")) + (self.selected_id,),
+        )
+        self.clear_form()
+        self.refresh()
 
     def delete_employee(self) -> None:
         """Delete the selected employee record."""
@@ -137,6 +154,9 @@ class EmployeeFrame(tb.Frame):
         """Clear form fields and selection."""
         self.selected_id = None
         self.photo_path.set("")
+    def clear_form(self) -> None:
+        """Clear form fields and selection."""
+        self.selected_id = None
         for key, variable in self.fields.items():
             if key != "search":
                 variable.set("Active" if key == "status" else "")
@@ -151,3 +171,5 @@ class EmployeeFrame(tb.Frame):
         for key, value in zip(("name", "department", "designation", "email", "phone", "joining_date", "status"), values[1:8]):
             self.fields[key].set(value)
         self.photo_path.set(values[8] if len(values) > 8 else "")
+        for key, value in zip(("name", "department", "designation", "email", "phone", "joining_date", "status"), values[1:]):
+            self.fields[key].set(value)

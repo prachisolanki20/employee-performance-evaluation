@@ -5,6 +5,7 @@ from __future__ import annotations
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, ttk
+from tkinter import ttk
 
 try:
     import ttkbootstrap as tb
@@ -53,6 +54,7 @@ class DashboardFrame(tb.Frame):
             ("Backup DB", self.backup_database),
             ("Restore DB", self.restore_database),
             ("Toggle Theme", self.toggle_theme),
+            ("Reports", self.show_reports),
         ):
             tb.Button(sidebar, text=text, command=command).pack(fill="x", pady=6)
         self.content.pack(side="right", fill="both", expand=True)
@@ -69,6 +71,7 @@ class DashboardFrame(tb.Frame):
         hero.pack(fill="x", pady=(0, 12))
         tk.Label(hero, text="🍉 HR Analytics Command Center", bg=CHINESE_BLACK, fg=WATERMELON_PINK, font=("Segoe UI", 24, "bold")).pack(anchor="w")
         tk.Label(hero, text="Premium Chinese Black × Watermelon Pink performance insights", bg=CHINESE_BLACK, fg="white", font=("Segoe UI", 11)).pack(anchor="w")
+        tb.Label(self.content, text="Dashboard", font=("Segoe UI", 24, "bold")).pack(anchor="w")
         stats = self._stats()
         cards = tb.Frame(self.content)
         cards.pack(fill="x", pady=15)
@@ -87,6 +90,10 @@ class DashboardFrame(tb.Frame):
         top = DB.fetch_one(
             """
             SELECT e.name AS name, ROUND(AVG(v.total_score), 2) AS score
+        avg = DB.fetch_one("SELECT ROUND(AVG((ratings+attendance+productivity+teamwork)/4), 2) AS score FROM evaluations")
+        top = DB.fetch_one(
+            """
+            SELECT e.name AS name, ROUND(AVG((v.ratings+v.attendance+v.productivity+v.teamwork)/4), 2) AS score
             FROM evaluations v JOIN employees e ON e.employee_id = v.employee_id
             GROUP BY e.employee_id, e.name ORDER BY score DESC LIMIT 1
             """
@@ -109,6 +116,7 @@ class DashboardFrame(tb.Frame):
         ax1.set_title("Employees by Department")
         scores = DB.fetch_all(
             "SELECT e.name, ROUND(AVG(v.total_score), 2) AS score FROM evaluations v JOIN employees e ON e.employee_id = v.employee_id GROUP BY e.name"
+            "SELECT e.name, ROUND(AVG((v.ratings+v.attendance+v.productivity+v.teamwork)/4), 2) AS score FROM evaluations v JOIN employees e ON e.employee_id = v.employee_id GROUP BY e.name"
         )
         ax2.bar([row["name"].split()[0] for row in scores], [row["score"] for row in scores])
         ax2.set_ylim(0, 10)

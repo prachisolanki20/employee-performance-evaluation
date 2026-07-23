@@ -55,6 +55,7 @@ class ReportsFrame(tb.Frame):
             SELECT e.employee_id, e.name, e.department, e.designation,
                    COUNT(v.evaluation_id) AS evaluations,
                    ROUND(AVG(v.total_score), 2) AS average_score
+                   ROUND(AVG((v.ratings+v.attendance+v.productivity+v.teamwork)/4), 2) AS average_score
             FROM employees e LEFT JOIN evaluations v ON v.employee_id = e.employee_id
             GROUP BY e.employee_id, e.name, e.department, e.designation
             ORDER BY average_score DESC
@@ -78,6 +79,18 @@ class ReportsFrame(tb.Frame):
         if score >= 6:
             return "B"
         return "C"
+        percentage = score * 10
+        if percentage >= 90:
+            return "Outstanding"
+        if percentage >= 80:
+            return "Excellent"
+        if percentage >= 70:
+            return "Very Good"
+        if percentage >= 60:
+            return "Good"
+        if percentage >= 50:
+            return "Average"
+        return "Needs Improvement"
 
     def refresh(self) -> None:
         """Reload report table."""
@@ -121,6 +134,7 @@ class ReportsFrame(tb.Frame):
         subtitle = Paragraph("Premium HR Analytics • Chinese Black × Watermelon Pink", styles["Normal"])
         table_style_note = Paragraph("Grades: A+ (9-10), A (8-8.99), B+ (7-7.99), B (6-6.99), C (below 6).", styles["Normal"])
         doc.build([title, subtitle, Spacer(1, 10), table_style_note, Spacer(1, 12), table])
+        doc.build([Paragraph("Employee Performance Evaluation Report", styles["Title"]), Spacer(1, 12), table])
         messagebox.showinfo("PDF Export", f"Report exported to {path}")
 
     @staticmethod

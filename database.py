@@ -94,6 +94,7 @@ class DatabaseManager:
                 joining_date TEXT NOT NULL,
                 status TEXT NOT NULL DEFAULT 'Active',
                 photo_path TEXT DEFAULT ''
+                status TEXT NOT NULL DEFAULT 'Active'
             )
             """,
             """
@@ -157,6 +158,9 @@ class DatabaseManager:
         }.items():
             if column not in eval_columns:
                 cursor.execute(f"ALTER TABLE evaluations ADD COLUMN {column} {definition}")
+        ]
+        for statement in statements:
+            cursor.execute(statement)
 
     def _seed_data(self, cursor: Any) -> None:
         """Insert default users and sample employees for a ready demo."""
