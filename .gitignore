@@ -1,0 +1,7 @@
+__pycache__/
+*.py[cod]
+*.log
+employee_performance.db
+reports_output/
+.venv/
+venv/
