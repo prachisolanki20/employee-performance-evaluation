@@ -28,6 +28,11 @@ except ImportError:
     A4 = None  # type: ignore[assignment]
     getSampleStyleSheet = None  # type: ignore[assignment]
     Paragraph = SimpleDocTemplate = Spacer = Table = TableStyle = None  # type: ignore[assignment]
+from openpyxl import Workbook
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from database import BASE_DIR, DB
 
@@ -66,6 +71,7 @@ class ReportsFrame(tb.Frame):
             SELECT e.employee_id, e.name, e.department, e.designation,
                    COUNT(v.evaluation_id) AS evaluations,
                    ROUND(AVG(v.total_score), 2) AS average_score
+                   ROUND(AVG((v.ratings+v.attendance+v.productivity+v.teamwork)/4), 2) AS average_score
             FROM employees e LEFT JOIN evaluations v ON v.employee_id = e.employee_id
             GROUP BY e.employee_id, e.name, e.department, e.designation
             ORDER BY average_score DESC
@@ -89,6 +95,18 @@ class ReportsFrame(tb.Frame):
         if score >= 6:
             return "B"
         return "C"
+        percentage = score * 10
+        if percentage >= 90:
+            return "Outstanding"
+        if percentage >= 80:
+            return "Excellent"
+        if percentage >= 70:
+            return "Very Good"
+        if percentage >= 60:
+            return "Good"
+        if percentage >= 50:
+            return "Average"
+        return "Needs Improvement"
 
     def refresh(self) -> None:
         """Reload report table."""
@@ -106,6 +124,7 @@ class ReportsFrame(tb.Frame):
                 writer.writerows([[row[column] for column in self.columns] for row in self._rows()])
             messagebox.showinfo("CSV Export", f"openpyxl is not installed. CSV report exported to {path}")
             return
+        """Export report data to an Excel workbook."""
         path = self._timestamped_path("employee_report", "xlsx")
         workbook = Workbook()
         sheet = workbook.active
@@ -130,6 +149,7 @@ class ReportsFrame(tb.Frame):
                     file.write(" | ".join(str(row[column]) for column in self.columns) + "\n")
             messagebox.showinfo("Text Export", f"ReportLab is not installed. Text report exported to {path}")
             return
+        """Export report data to a PDF document."""
         path = self._timestamped_path("employee_report", "pdf")
         doc = SimpleDocTemplate(str(path), pagesize=A4)
         styles = getSampleStyleSheet()
@@ -140,6 +160,7 @@ class ReportsFrame(tb.Frame):
             TableStyle(
                 [
                     ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#ff4f81")),
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1f77b4")),
                     ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
                     ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
                     ("FONTSIZE", (0, 0), (-1, -1), 7),
@@ -150,6 +171,11 @@ class ReportsFrame(tb.Frame):
         subtitle = Paragraph("Premium HR Analytics • Chinese Black × Watermelon Pink", styles["Normal"])
         grade_note = Paragraph("Grades: A+ (9-10), A (8-8.99), B+ (7-7.99), B (6-6.99), C (below 6).", styles["Normal"])
         doc.build([title, subtitle, Spacer(1, 10), grade_note, Spacer(1, 12), table])
+        title = Paragraph("🍉 Employee Performance Evaluation Report", styles["Title"])
+        subtitle = Paragraph("Premium HR Analytics • Chinese Black × Watermelon Pink", styles["Normal"])
+        table_style_note = Paragraph("Grades: A+ (9-10), A (8-8.99), B+ (7-7.99), B (6-6.99), C (below 6).", styles["Normal"])
+        doc.build([title, subtitle, Spacer(1, 10), table_style_note, Spacer(1, 12), table])
+        doc.build([Paragraph("Employee Performance Evaluation Report", styles["Title"]), Spacer(1, 12), table])
         messagebox.showinfo("PDF Export", f"Report exported to {path}")
 
     @staticmethod

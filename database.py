@@ -2,11 +2,15 @@
 
 The project uses a local SQLite database so the college demo can run on any
 computer without external database setup.
+The project prefers Oracle through python-oracledb thin mode. If Oracle settings are
+not available, it automatically uses a local SQLite database so the college demo can
+run on any laptop without changing application code.
 """
 
 from __future__ import annotations
 
 import logging
+import os
 import shutil
 import sqlite3
 from contextlib import contextmanager
@@ -24,6 +28,22 @@ class DatabaseManager:
     def __init__(self) -> None:
         """Create a SQLite database manager for the local demo database."""
         LOGGER.info("Using local SQLite database at %s", SQLITE_DB_PATH)
+        """Create a database manager and decide whether Oracle is configured."""
+        self.use_oracle = all(
+            os.getenv(name) for name in ("ORACLE_USER", "ORACLE_PASSWORD", "ORACLE_DSN")
+        )
+        self._oracledb: Any | None = None
+        if self.use_oracle:
+            try:
+                import oracledb
+
+                self._oracledb = oracledb
+                LOGGER.info("Oracle configuration found. Using Oracle thin mode.")
+            except ImportError:
+                LOGGER.warning("oracledb is not installed. Falling back to SQLite.")
+                self.use_oracle = False
+        else:
+            LOGGER.info("Oracle environment variables not found. Using SQLite.")
 
     @contextmanager
     def connect(self) -> Iterator[Any]:
@@ -33,6 +53,15 @@ class DatabaseManager:
             connection = sqlite3.connect(SQLITE_DB_PATH)
             connection.row_factory = sqlite3.Row
             connection.execute("PRAGMA foreign_keys = ON")
+            if self.use_oracle and self._oracledb is not None:
+                connection = self._oracledb.connect(
+                    user=os.environ["ORACLE_USER"],
+                    password=os.environ["ORACLE_PASSWORD"],
+                    dsn=os.environ["ORACLE_DSN"],
+                )
+            else:
+                connection = sqlite3.connect(SQLITE_DB_PATH)
+                connection.row_factory = sqlite3.Row
             yield connection
             connection.commit()
         except Exception:
@@ -72,6 +101,7 @@ class DatabaseManager:
                 joining_date TEXT NOT NULL,
                 status TEXT NOT NULL DEFAULT 'Active',
                 photo_path TEXT DEFAULT ''
+                status TEXT NOT NULL DEFAULT 'Active'
             )
             """,
             """
@@ -135,6 +165,9 @@ class DatabaseManager:
         }.items():
             if column not in eval_columns:
                 cursor.execute(f"ALTER TABLE evaluations ADD COLUMN {column} {definition}")
+        ]
+        for statement in statements:
+            cursor.execute(statement)
 
     def _seed_data(self, cursor: Any) -> None:
         """Insert default users and sample employees for a ready demo."""

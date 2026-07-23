@@ -14,6 +14,13 @@ A professional Python desktop mini project for managing employees, recording per
 - Excel export using openpyxl.
 - SQLite demo database with Oracle driver dependency retained for college environments that require Oracle connectivity discussion.
 - Database backup support for safer demonstrations.
+- Role-based login for Admin, HR, and Manager users.
+- Employee management with add, update, delete, and search.
+- Performance evaluation using ratings, attendance, productivity, and teamwork scores.
+- Dashboard cards and charts using Matplotlib.
+- PDF report generation using ReportLab.
+- Excel export using openpyxl.
+- Oracle-ready database layer with automatic SQLite fallback for easy college demonstration.
 
 ## Folder Structure
 
@@ -71,3 +78,4 @@ If these variables are missing, the app creates `employee_performance.db` automa
 ## Viva Explanation
 
 The project follows a simple layered structure. GUI modules call the centralized `DatabaseManager` in `database.py`, which performs all database operations. This keeps SQL away from button-handling logic and makes the code easier to explain, test, and maintain. The enhanced version adds HR analytics, attendance, department/designation administration, automatic grades, AI-style suggestions, backup support, and exportable reports for a polished viva demonstration.
+The project follows a simple layered structure. GUI modules call the centralized `DatabaseManager` in `database.py`, which performs all database operations. This keeps SQL away from button-handling logic and makes the code easier to explain, test, and maintain.

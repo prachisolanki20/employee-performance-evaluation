@@ -9,6 +9,7 @@ try:
     import ttkbootstrap as tb
 except ImportError:  # graceful fallback for systems before dependency install
     from tkinter import ttk as tb  # type: ignore
+    import tkinter as tb  # type: ignore
 
 from database import DB
 from login import LoginFrame
@@ -53,6 +54,7 @@ WindowBase = tb.Window if hasattr(tb, "Window") else tk.Tk
 
 
 class EmployeePerformanceApp(WindowBase):
+class EmployeePerformanceApp(tb.Window):
     """Root desktop application window."""
 
     def __init__(self) -> None:

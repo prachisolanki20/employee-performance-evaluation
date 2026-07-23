@@ -39,6 +39,7 @@ class EvaluationFrame(tb.Frame):
             tb.Entry(form, textvariable=self.vars[key], width=24).grid(row=(index // 4) * 2 + 1, column=index % 4, padx=5, pady=4)
         tb.Button(self, text="Save Evaluation", command=self.save).pack(anchor="w", pady=10)
         columns = ("evaluation_id", "employee", "period", "ratings", "attendance", "productivity", "teamwork", "total_score", "grade", "suggestion", "remarks")
+        columns = ("evaluation_id", "employee", "period", "ratings", "attendance", "productivity", "teamwork", "average", "remarks")
         self.tree = ttk.Treeview(self, columns=columns, show="headings")
         for column in columns:
             self.tree.heading(column, text=column.title())
@@ -55,6 +56,8 @@ class EvaluationFrame(tb.Frame):
             SELECT v.evaluation_id, e.name AS employee, v.period, v.ratings, v.attendance,
                    v.productivity, v.teamwork,
                    v.total_score, v.grade, v.suggestion, COALESCE(v.remarks, '') AS remarks
+                   ROUND((v.ratings+v.attendance+v.productivity+v.teamwork)/4, 2) AS average,
+                   COALESCE(v.remarks, '') AS remarks
             FROM evaluations v JOIN employees e ON e.employee_id = v.employee_id
             ORDER BY v.evaluation_id DESC
             """
@@ -84,6 +87,10 @@ class EvaluationFrame(tb.Frame):
             DB.execute(
                 "INSERT INTO evaluations (employee_id, period, ratings, attendance, productivity, teamwork, total_score, grade, suggestion, remarks) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (self.employee_lookup[employee], self.vars["period"].get().strip(), *scores, total_score, grade, suggestion, self.vars["remarks"].get().strip()),
+        try:
+            DB.execute(
+                "INSERT INTO evaluations (employee_id, period, ratings, attendance, productivity, teamwork, remarks) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (self.employee_lookup[employee], self.vars["period"].get().strip(), *scores, self.vars["remarks"].get().strip()),
             )
             for variable in self.vars.values():
                 variable.set("")
@@ -124,3 +131,5 @@ class EvaluationFrame(tb.Frame):
         if score >= 6:
             return f"Average performance. Schedule monthly coaching for {weakest}."
         return f"Needs immediate support. Create a 30-day improvement plan for {weakest}."
+        except Exception as exc:
+            messagebox.showerror("Database Error", f"Unable to save evaluation. {exc}")
